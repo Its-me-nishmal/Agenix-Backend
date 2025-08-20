@@ -24,28 +24,31 @@ const allowedOrigins = [
 // 🔥 Custom CORS/Origin middleware (manual)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const referer = req.headers.referer;
 
-  if (allowedOrigins.includes(origin)) {
+  // allow only if origin + referer both match
+  if (
+    allowedOrigins.includes(origin) &&
+    referer &&
+    allowedOrigins.some((allowed) => referer.startsWith(allowed))
+  ) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
     res.setHeader("Access-Control-Allow-Credentials", "true");
 
-    // ✅ handle preflight cleanly
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
-
+    if (req.method === "OPTIONS") return res.sendStatus(200);
     return next();
   }
 
-  // ❌ Block curl / postman / unknown domains
+  // Block curl/Postman and spoofed requests
   res.status(403).json({
     success: false,
     by: "Cipher Nichu",
-    message: "Blocked: Unauthorized domain or curl request"
+    message: "Blocked: Unauthorized domain or curl request",
   });
 });
+
 
 // ✅ Rate limiters
 const perMinuteLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
