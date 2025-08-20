@@ -18,34 +18,47 @@ app.use(express.json());
 // ✅ Cipher Nichu strict allowed origins
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://hayatix-ai.vercel.app"
+  "https://hayatix-ai.vercel.app",
 ];
 
-// 🔥 Custom CORS/Origin middleware (manual)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  const referer = req.headers.referer;
 
-  if (allowedOrigins.includes(origin)) {
+  // ✅ Dev free-pass
+  if (origin === "http://localhost:5173") {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
     res.setHeader("Access-Control-Allow-Credentials", "true");
 
-    // ✅ handle preflight cleanly
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
-
+    if (req.method === "OPTIONS") return res.sendStatus(200);
     return next();
   }
 
-  // ❌ Block curl / postman / unknown domains
+  // ✅ Production strict check
+  if (
+    origin === "https://hayatix-ai.vercel.app" &&
+    referer &&
+    referer.startsWith("https://hayatix-ai.vercel.app")
+  ) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+
+    if (req.method === "OPTIONS") return res.sendStatus(200);
+    return next();
+  }
+
+  // ❌ Block curl/Postman/unknown
   res.status(403).json({
     success: false,
     by: "Cipher Nichu",
-    message: "Blocked: Unauthorized domain or curl request"
+    message: "Blocked: Unauthorized domain or curl request",
   });
 });
+
 
 // ✅ Rate limiters
 const perMinuteLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
