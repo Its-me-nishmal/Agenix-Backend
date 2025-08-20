@@ -20,8 +20,23 @@ const app = express();
 // Body parser
 app.use(express.json());
 
-// Enable CORS (default: allows all origins)
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://hayatix-ai.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS Blocked: Not allowed by Cipher Nichu rules"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 // 20 per minute
 const perMinuteLimiter = rateLimit({
