@@ -26,33 +26,33 @@ const allowedUserAgents = [
   "Mozilla", "Chrome", "Safari", "Firefox", "Edg" // common browsers
 ];
 
+// 🚨 Advanced Anti-Spoof Middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin || "";
   const referer = req.headers.referer || "";
-  const userAgent = req.headers["user-agent"] || "";
+  const ua = req.headers["user-agent"] || "";
+  const fetchSite = req.headers["sec-fetch-site"] || "";
+  const fetchMode = req.headers["sec-fetch-mode"] || "";
+  const fetchDest = req.headers["sec-fetch-dest"] || "";
+  const chUa = req.headers["sec-ch-ua"] || "";
+  const chPlatform = req.headers["sec-ch-ua-platform"] || "";
 
-  // 1️⃣ Origin check
-  if (!allowedOrigins.includes(origin)) {
-    return deny(req, res, "Invalid origin");
-  }
+  // 1️⃣ Origin & Referer strict
+  if (!allowedOrigins.includes(origin)) return deny(res, "Bad origin");
+  if (!allowedOrigins.some(o => referer.startsWith(o))) return deny(res, "Bad referer");
 
-  // 2️⃣ Referer check (must start with one of your domains)
-  const validReferer = allowedOrigins.some(allowed =>
-    referer.startsWith(allowed)
-  );
-  if (!validReferer) {
-    return deny(req, res, "Invalid referer");
-  }
+  // 2️⃣ User-Agent sanity check
+  if (!ua.includes("Mozilla") || ua.length < 20) return deny(res, "Suspicious UA");
 
-  // 3️⃣ User-Agent check (block curl, wget, Postman, bots)
-  const validUA = allowedUserAgents.some(agent =>
-    userAgent.includes(agent)
-  );
-  if (!validUA) {
-    return deny(req, res, "Suspicious user agent");
-  }
+  // 3️⃣ Sec-Fetch-* headers (curl/postman rarely match these perfectly)
+  if (!(fetchMode === "cors" && fetchDest === "empty")) return deny(res, "Bad fetch headers");
+  if (!["same-origin", "cross-site"].includes(fetchSite)) return deny(res, "Bad fetch site");
 
-  // 4️⃣ Preflight OPTIONS request → handle cleanly
+  // 4️⃣ Client Hints (sec-ch-ua must look like Chrome/Firefox/etc.)
+  if (!chUa.includes("Chrome") && !chUa.includes("Firefox")) return deny(res, "Invalid client hint");
+  if (!chPlatform) return deny(res, "Missing platform hint");
+
+  // ✅ Preflight OPTIONS
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
@@ -61,11 +61,19 @@ app.use((req, res, next) => {
     return res.sendStatus(200);
   }
 
-  // ✅ Passed → allow
   res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Credentials", "true");
   next();
 });
+
+function deny(res, reason) {
+  return res.status(403).json({
+    success: false,
+    by: "Cipher Nichu",
+    reason
+  });
+}
+
 
 // 🔥 Unified denial helper
 function deny(req, res, reason) {
