@@ -1,6 +1,6 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const cors = require('cors');   // <--- add this
+const cors = require('cors');
 const connectDB = require('./config/db');
 const rateLimit = require('express-rate-limit');
 
@@ -20,65 +20,55 @@ const app = express();
 // Body parser
 app.use(express.json());
 
+// ✅ Strict CORS config
 const allowedOrigins = [
   "http://localhost:5173",
   "https://hayatix-ai.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow non-browser (optional)
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS Blocked"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("CORS Blocked: Origin not allowed"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-// 🔑 Handle preflight
-app.options("*", cors());
+// ✅ Apply CORS before anything else
+app.use(cors(corsOptions));
 
-// 20 per minute
+// ✅ Explicit preflight handling
+app.options("*", cors(corsOptions));
+
+// ✅ Rate limiters (after CORS so preflights aren’t blocked)
 const perMinuteLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// 200 per hour
 const perHourLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// 2000 per day
 const perDayLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  windowMs: 24 * 60 * 60 * 1000,
   max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
+app.use(perMinuteLimiter, perHourLimiter, perDayLimiter);
 
-app.use(perMinuteLimiter, perHourLimiter, perDayLimiter); // apply to all requests
-
-
-// If you want to restrict origins, you can configure like this:
-// app.use(cors({
-//   origin: ['http://localhost:3000', 'https://yourdomain.com'],
-//   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-//   credentials: true
-// }));
-
-// Mount routers
+// ✅ Mount routers
 app.use('/agents', agents);
 app.use('/sessions', sessions);
 app.use('/admin', admin);
