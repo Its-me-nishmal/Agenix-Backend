@@ -28,15 +28,20 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow non-browser (optional)
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS Blocked: Not allowed by Cipher Nichu rules"));
+        return callback(null, true);
       }
+      return callback(new Error("CORS Blocked"));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// 🔑 Handle preflight
+app.options("*", cors());
 
 // 20 per minute
 const perMinuteLimiter = rateLimit({
