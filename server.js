@@ -15,38 +15,68 @@ const app = express();
 // Body parser
 app.use(express.json());
 
-// ✅ Cipher Nichu strict allowed origins
+// 🔒 Cipher Nichu Security Shield
 const allowedOrigins = [
   "http://localhost:5173",
   "https://hayatix-ai.vercel.app",
   "https://hayatixai.nichu.dev"
 ];
 
-// 🔥 Custom CORS/Origin middleware (manual)
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
+const allowedUserAgents = [
+  "Mozilla", "Chrome", "Safari", "Firefox", "Edg" // common browsers
+];
 
-  if (allowedOrigins.includes(origin)) {
+app.use((req, res, next) => {
+  const origin = req.headers.origin || "";
+  const referer = req.headers.referer || "";
+  const userAgent = req.headers["user-agent"] || "";
+
+  // 1️⃣ Origin check
+  if (!allowedOrigins.includes(origin)) {
+    return deny(req, res, "Invalid origin");
+  }
+
+  // 2️⃣ Referer check (must start with one of your domains)
+  const validReferer = allowedOrigins.some(allowed =>
+    referer.startsWith(allowed)
+  );
+  if (!validReferer) {
+    return deny(req, res, "Invalid referer");
+  }
+
+  // 3️⃣ User-Agent check (block curl, wget, Postman, bots)
+  const validUA = allowedUserAgents.some(agent =>
+    userAgent.includes(agent)
+  );
+  if (!validUA) {
+    return deny(req, res, "Suspicious user agent");
+  }
+
+  // 4️⃣ Preflight OPTIONS request → handle cleanly
+  if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
     res.setHeader("Access-Control-Allow-Credentials", "true");
-
-    // ✅ handle preflight cleanly
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
-
-    return next();
+    return res.sendStatus(200);
   }
 
-  // ❌ Block curl / postman / unknown domains
-  res.status(403).json({
+  // ✅ Passed → allow
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
+// 🔥 Unified denial helper
+function deny(req, res, reason) {
+  return res.status(403).json({
     success: false,
     by: "Cipher Nichu",
-    message: "Blocked: Unauthorized domain or curl request"
+    blocked: true,
+    reason
   });
-});
+}
+
 
 // ✅ Rate limiters
 const perMinuteLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
