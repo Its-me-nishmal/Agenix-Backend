@@ -18,7 +18,8 @@ app.use(express.json());
 // ✅ Cipher Nichu strict allowed origins
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://hayatix-ai.vercel.app"
+  "https://hayatix-ai.vercel.app",
+  "https://hayatixai.nichu.dev"
 ];
 
 // 🔥 Custom CORS/Origin middleware (manual)
