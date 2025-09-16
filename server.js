@@ -19,7 +19,9 @@ app.use(express.json());
 const allowedOrigins = [
   "http://localhost:5173",
   "https://hayatix-ai.vercel.app",
-  "https://hayatixai.nichu.dev"
+  "https://hayatixai.nichu.dev",
+  "https://solid-goldfish-5g4579j7w6qpcv96q-5001.app.github.dev",
+  "http://localhost:5001"
 ];
 
 const allowedUserAgents = [
